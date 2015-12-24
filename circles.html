@@ -12,18 +12,20 @@
 
 
 <body style="font-family: 'Titillium Web', sans-serif;">
-	<div style="border: solid; border-width:3px;overflow:hidden">
+	<div style="border: solid; border-width:3px;overflow:hidden" class="frame">
 		<div style="overflow:hidden;padding:5px">
-			<h1 style="text-align:center">Improper Fractions to Mixed Fractions</h1>
+			<h2 style="text-align:center">Improper Fractions to Mixed Fractions</h2>
+			<div style="width:30%;height:20%">
+				<div style="height:100%;margin:7px;padding:7px"><h3>Num: <input class="num"></input></h3>
+					<h3>Den: <input class="den"></input></h3>
 
-			<div style="float:left;height:100%;margin:20px;padding:20px"><h3>Num: <input class="num"></input></h3>
-				<h3>Den: <input class="den"></input></h3>
+					<button class="draw">Draw </button></div>
+					<div style="height=100%;margin:7px;padding:7px;overflow:hidden;padding:2px;width:50%;text-align:left">
+						<h3>Mixed Fraction : </h3><div class="fraction" style="font-size:20px"></div>
+						<h3>Decimal : </h3><div class="decimal" style="font-size:20px"></div>
+					</div>
+			</div>
 
-				<button class="draw">Draw </button></div>
-				<div style="float:right;height=100%;margin:20px;padding:20px;overflow:hidden;padding:5px;width:50%;text-align:left">
-					<h3>Mixed Fraction : </h3><div class="fraction" style="font-size:30px"></div>
-					<h3>Decimal : </h3><div class="decimal" style="font-size:30px"></div>
-				</div>
 			</div>
 		</div>
 
@@ -161,7 +163,7 @@
 	function init() {
 
 		scene = new THREE.Scene();
-		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / (window.innerHeight/2), 1, 10000 );
+		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / (window.innerHeight), 1, 10000 );
 		camera.position.z = 10;
 		initscene();
 		var radius = 5;
@@ -174,8 +176,10 @@
 
 
 		renderer = new THREE.WebGLRenderer( {alpha : true , antialias: true} );
-		renderer.setSize( window.innerWidth ,window.innerHeight/2 );
+		renderer.setSize( window.innerWidth ,window.innerHeight );
 		document.body.appendChild( renderer.domElement );
+		$('canvas').css('position','fixed').css('top','0px').css('left','0px').css("z-index",-1)
+		$('.frame').height($('canvas').height() - 30 );
 	}
 
 	function animate() {
