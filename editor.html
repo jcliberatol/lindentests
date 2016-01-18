@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title></title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.min.js"></script>
+	<script src="OrbitControls.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.5.1/katex.min.css">
+	<link rel="stylesheet" href="graph.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.5.1/katex.min.js"></script>
+	<link href='https://fonts.googleapis.com/css?family=Titillium+Web:400,700italic,700,400italic' rel='stylesheet' type='text/css'>
+</head>
+
+
+<body style="font-family: 'Titillium Web', sans-serif;">
+	<div class="box add">
+		<h3>	<i class="fa fa-plus"></i> Add</h3>
+		<div class="image cube">
+
+			<div class="description">
+				Cube
+			</div>
+		</div>
+		<div class="image sphere">
+
+			<div class="description">
+				Sphere
+			</div>
+		</div>
+		<div class="image pyramid">
+
+			<div class="description">
+				Pyramid
+			</div>
+		</div>
+	</div>
+	<div class="box edit">
+		<h3>	<i class="fa fa-edit"></i> Edit</h3>
+		<div class="pan">
+			<i class="fa fa-hand-rock-o edit" ></i> Pan or Edit
+		</div>
+		<div class="remove">
+			<i class="fa fa-close edit"></i>  Remove
+		</div>
+	</div>
+
+</body>
+<script>
+
+var scene, camera, renderer;
+var geometry, material, mesh;
+time = 0;
+cube = {};
+sphere = {};
+pyramid = {};
+init();
+initcube();
+initsphere();
+initpyramid();
+
+animate();
+
+function init(){
+	//
+	state = "null";
+	$('.cube').hover(
+		function(){state = "cube"},
+		function(){state = "null"}
+	);
+	$('.sphere').hover(
+		function(){state = "sphere"},
+		function(){state = "null"}
+	);
+	$('.pyramid').hover(
+		function(){state = "pyramid"},
+		function(){state = "null"}
+	);
+
+	$('.box').bind('click',createfun);
+
+	scene = new THREE.Scene();
+	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10000 );
+
+
+
+	renderer = new THREE.WebGLRenderer( {alpha : true , antialias: true} );
+	renderer.setSize( window.innerWidth , window.innerHeight  );
+	camera.position.set(10,10,10);
+	window.document.body.appendChild( renderer.domElement );
+	$(renderer.domElement).css("position","fixed").css("top","0").css("left","0").addClass("canvas").css("z-index","3")
+	$(renderer.domElement).mousemove(function(event){
+		//raytrace in paste
+		mouse.x = ( event.offsetX / window.innerWidth ) * 2 - 1;
+		mouse.y = - ( event.offsetY / window.innerHeight ) * 2 + 1;
+	});
+
+	addLights(scene,camera, 0.7);
+	objects = [];
+	controls = new THREE.OrbitControls( camera , renderer.domElement);
+	controls.addEventListener( 'change', render );
+
+	var geometry = new THREE.PlaneGeometry( 300, 300, 10 , 10);
+	var material = new THREE.MeshBasicMaterial( {color: 0x404040, side: THREE.DoubleSide , transparent : true , opacity : 0.1, wireframe:true} );
+	plane = new THREE.Mesh( geometry, material );
+	plane2 = new THREE.Mesh( geometry, material );
+	plane.rotation.x = Math.PI/2
+	plane.name = "permanent";
+	plane2.name="static";
+	scene.add( plane );
+	scene.add( plane2 );
+	objects.push(plane);
+
+	$(renderer.domElement).bind('click',worldAction)
+	raycaster = new THREE.Raycaster();
+	mouse = new THREE.Vector2();
+
+	//state of the cursor
+	cursorState = "null";
+	prevCursorState = "null";
+	selection = 0;
+
+
+	//active vertex state
+	vertexVisible = false;
+	vertices = [];
+	vertexHover = false;
+	vertexActive = false;
+	planeIntersect=false;
+}
+
+function worldAction(event){
+	mouse.x = ( event.offsetX / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( event.offsetY / window.innerHeight ) * 2 + 1;
+
+	// update the picking ray with the camera and mouse position
+	raycaster.setFromCamera( mouse, camera );
+
+	// calculate objects intersecting the picking ray
+
+	//select objects to intersects
+	if(vertexActive){
+		console.log("eliminating the active vertex");
+			vertexActive.material.color.setRGB(1,0,0);
+			vertexActive.scale.set(1,1,1);
+			vertexActive = false;
+	}else{
+		if(vertexHover){
+			console.log("a vertex is hovered");
+			vertexActive = vertexHover;
+			vertexActive.material.color.setRGB(0,0,1);
+			vertexActive.scale.set(2,2,2);
+			vertexHover = false;
+			console.log(vertexActive);
+		}
+	}
+
+
+	var intersects = raycaster.intersectObjects( scene.children );
+	console.log(intersects);
+	for ( var i = 0; i < intersects.length; i++ ) {
+		var pt = intersects[i].point;
+		meshh = 0;
+		//add cubes
+		var material =new THREE.MeshNormalMaterial();
+
+		if(cursorState == "cube"){
+			var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+			//material = new THREE.MeshPhongMaterial( {color:  new THREE.Color(Math.random(),Math.random(),Math.random()),specular: 0x050505,shininess: 100	} )
+			meshh = new THREE.Mesh( geometry, material );
+			scene.add( meshh );
+			meshh.position.copy(pt);
+		}
+		//add spheres
+		if(cursorState == "sphere"){
+			//material = new THREE.MeshPhongMaterial( {color:  new THREE.Color(Math.random(),Math.random(),Math.random()),specular: 0x050505,shininess: 100	} )
+			var geometry = new THREE.SphereGeometry( 1, 32, 32 );
+			var meshh = new THREE.Mesh( geometry, material );
+			scene.add( meshh );
+			meshh.position.copy(pt);
+		}
+		//add pyramid
+		if(cursorState == "pyramid"){
+			//material = new THREE.MeshPhongMaterial( {color:  new THREE.Color(Math.random(),Math.random(),Math.random()),specular: 0x050505,shininess: 100	} )
+			var geometry = new THREE.TetrahedronGeometry(1, 0)
+			var meshh = new THREE.Mesh( geometry, material );
+			scene.add( meshh );
+			meshh.position.copy(pt);
+		}
+		if(cursorState == "remove"){
+			console.log(intersects[i].object);
+			if( intersects[i].object.name != "permanent"&&intersects[i].object.name!="static" ) {
+				scene.remove( intersects[i].object );
+			}
+		}
+		if(cursorState == "pan"){
+			vertexVisible = true;
+			console.log(intersects[i].object);
+			//if object is free (no vertices hovered)
+
+
+			if( intersects[i].object.name != "permanent" ) {
+
+				if(selection == intersects[i].object ){
+					selection = 0;
+
+				}else{
+					selection = intersects[i].object;
+
+				}
+			}else {
+				console.log(intersects[i]);
+				planeIntersect=intersects[i];
+			}
+
+		}
+
+		//if a mesh was created
+		if (meshh != 0){
+			console.log(meshh);
+			material = new THREE.MeshBasicMaterial( {color: 0xff00000} );
+			max = meshh.geometry.vertices.length;
+			if(cursorState == "sphere"){max = 1};
+
+			for (var i = 0; i < max; i++) {
+					material = new THREE.MeshBasicMaterial( {color: 0xff00000} )
+					var geometry = new THREE.SphereGeometry( 0.1, 5, 5 );
+					var vertex = new THREE.Mesh( geometry, material );
+					meshh.add( vertex );
+					vertex.position.copy(meshh.geometry.vertices[i]);
+					vertices.push(vertex)
+					vertex.visible = false;
+					vertex.parentVertex = meshh.geometry.vertices[i];
+					vertex.cursorState = cursorState;
+					vertex.name = "vertex";
+			}
+		}
+
+	}
+
+}
+
+function createfun(e){
+	el = $(e.toElement);
+	$('.active').removeClass("active");
+	el.addClass("active");
+	prevCursorState = cursorState;
+
+
+
+	if(el.hasClass("sphere")){
+		console.log("sphere");
+		document.body.style.cursor = 'crosshair';
+		cursorState = "sphere";
+	}
+	if(el.hasClass("cube")){
+		console.log("cube");
+		document.body.style.cursor = 'crosshair';
+		cursorState = "cube";
+	}
+	if(el.hasClass("pyramid")){
+		console.log("pyramid");
+		document.body.style.cursor = 'crosshair';
+		cursorState = "pyramid";
+	}
+	if(el.hasClass("pan")){
+		console.log("pan");
+		document.body.style.cursor = 'move';
+		cursorState = "pan";
+		controls.enabled= false;
+		for (var i = 0; i < vertices.length; i++) {
+			vertices[i].visible = true;
+		}
+	}
+	if(el.hasClass("remove")){
+		console.log("remove");
+		document.body.style.cursor = 'not-allowed';
+		cursorState = "remove";
+	}
+
+	if(cursorState != prevCursorState){
+		if(prevCursorState == "pan"){
+			//Exits the pan mode, vertices are hidden
+			controls.enabled = true;
+			vertexVisible = false;
+			for (var i = 0; i < vertices.length; i++) {
+				vertices[i].visible = false;
+			}
+		}
+	}
+
+}
+
+function initcube() {
+	cube.scene = new THREE.Scene();
+	cube.camera = new THREE.PerspectiveCamera( 75, 50 / 50, 0.01, 10000 );
+	cube.camera.position.z = 1.7;
+
+	cube.renderer = new THREE.WebGLRenderer( {alpha : true , antialias: true} );
+	cube.renderer.setSize( $('.cube').width()  , $('.cube').width()  );
+	elem = $('.cube').get(0);
+	elem.appendChild( cube.renderer.domElement );
+	$('.cube').css("position","relative").height($('.cube').width() )
+	$('.cube canvas').css("position","absolute").css("top","0").css("left","0").addClass("cube")
+
+	addLights(cube.scene,cube.camera);
+
+	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+	material = new THREE.MeshPhongMaterial( {
+		color: 0x996633,
+		specular: 0x050505,
+		shininess: 100
+	} )
+
+	cube.cube = new THREE.Mesh( geometry, material );
+	cube.scene.add( cube.cube );
+}
+
+function initsphere() {
+	sphere.scene = new THREE.Scene();
+	sphere.camera = new THREE.PerspectiveCamera( 75, 50 / 50, 0.01, 10000 );
+	sphere.camera.position.z = 3;
+
+	sphere.renderer = new THREE.WebGLRenderer( {alpha : true , antialias: true} );
+	sphere.renderer.setSize( $('.sphere').width()  , $('.sphere').width()  );
+	elem = $('.sphere').get(0);
+	elem.appendChild( sphere.renderer.domElement );
+	$('.sphere').css("position","relative").height($('.sphere').width() )
+	$('.sphere canvas').css("position","absolute").css("top","0").css("left","0").addClass("sphere")
+	//$('.sphere canvas').css('margin-left',($('.sphere').width()-$('.sphere canvas').width())/2+'px')
+
+	addLights(sphere.scene,sphere.camera);
+
+	var geometry = new THREE.SphereGeometry(1, 32, 32 );
+	material = new THREE.MeshPhongMaterial( {
+		color: 0x996633,
+		specular: 0x050505,
+		shininess: 100
+	} )
+
+	sphere.sphere = new THREE.Mesh( geometry, material );
+	sphere.scene.add( sphere.sphere );
+}
+
+
+function initpyramid() {
+	pyramid.scene = new THREE.Scene();
+	pyramid.camera = new THREE.PerspectiveCamera( 75, 1, 0.01, 10000 );
+	pyramid.camera.position.z = 1.7;
+
+	pyramid.renderer = new THREE.WebGLRenderer( {alpha : true , antialias: true} );
+	pyramid.renderer.setSize( $('.pyramid').width() , $('.pyramid').width() );
+	elem = $('.pyramid').get(0);
+	elem.appendChild( pyramid.renderer.domElement );
+	$('.pyramid').css("position","relative").height($('.pyramid').width() )
+	$('.pyramid canvas').css("position","absolute").css("top","0").css("left","0").addClass("pyramid")
+
+	addLights(pyramid.scene , pyramid.camera);
+
+
+	var geometry = new THREE.TetrahedronGeometry(1, 0)
+	material = new THREE.MeshPhongMaterial( {
+		color: 0x996633,
+		specular: 0x050505,
+		shininess: 100
+	} )
+
+	pyramid.pyramid = new THREE.Mesh( geometry, material );
+	pyramid.scene.add( pyramid.pyramid );
+}
+
+function animate() {
+
+
+
+	if(state=="cube"){
+		cube.cube.rotation.x += 0.01;
+		cube.cube.rotation.y += 0.01;
+		cube.cube.rotation.z += 0.01;
+	}
+
+	if(state=="pyramid"){
+		pyramid.pyramid.rotation.x += 0.01;
+		pyramid.pyramid.rotation.y += 0.01;
+		pyramid.pyramid.rotation.z += 0.01;
+	}
+
+	if(state=="sphere"){
+		time +=0.01;
+		sphere.sphere.position.set(0+Math.sin(time),1-Math.cos(time),0);
+	}
+	requestAnimationFrame( animate );
+
+
+
+	cube.renderer.render( cube.scene, cube.camera );
+	sphere.renderer.render( sphere.scene, sphere.camera );
+	pyramid.renderer.render( pyramid.scene, pyramid.camera );
+
+	time +=0.01;
+	render();
+
+	// update the picking ray with the camera and mouse position
+	raycaster.setFromCamera( mouse, camera );
+	// calculate objects intersecting the picking ray
+	pt = 0;
+	var intersects = raycaster.intersectObjects( scene.children );
+	for ( var i = 0; i < intersects.length; i++ ) {
+		if(intersects[i].object.name == "permanent"){
+			pt = intersects[i].point;
+		}
+	}
+	//Intersect with vertexes
+
+	if(vertexHover && (vertexHover!= vertexActive)){
+		vertexHover.material.color.setRGB(1,0,0);
+		vertexHover.scale.set(1,1,1);
+		vertexHover = false;
+	}
+	var intersects = raycaster.intersectObjects( vertices );
+	for ( var i = 0; i < intersects.length; i++ ) {
+		if( intersects[i].object.name == "vertex" ) {
+		vertexHover = intersects[i].object;
+		console.log("selecting a vertex");
+		if(vertexHover != vertexActive){
+			intersects[i].object.material.color.setRGB(0,1,0)
+			intersects[i].object.scale.set(1.5,1.5,1.5);
+		}
+
+		}
+	}
+
+
+	if(!vertexActive){
+		if (planeIntersect) {
+			//////
+		}
+		if(selection != 0 &&  pt!=0){
+			//moving an object
+			console.log("moving sleection");
+			selection.position.copy(pt);
+		}
+	}else {
+		//modify the vertex
+		pt = 0;
+		var intersects = raycaster.intersectObjects( scene.children );
+		for ( var i = 0; i < intersects.length; i++ ) {
+			if(intersects[i].object.name == "permanent"){
+				pt = intersects[i].point;
+				console.log(pt);
+			}
+		}
+		if(pt!=0){
+			//moving an object
+			if(vertexActive.cursorState == "sphere" || vertexActive.cursorState == "cube"){
+				console.log(pt.length());
+				pt.sub(vertexActive.parent.position);
+				ptl = pt.length();
+
+				//vertexActive.position.copy(pt);
+				//vertexActive.parentVertex.copy(pt);
+				//vertexActive.parent.geometry.verticesNeedUpdate = true;
+				//console.log(vertexActive.parent);
+				vertexActive.parent.scale.set(ptl,ptl,ptl)
+				//console.log(vertexActive.parent.scale);
+			}
+
+			if(vertexActive.cursorState == "pyramid"){
+				y = vertexActive.position.y;
+				pt.sub(vertexActive.parent.position);
+				pt.y = y;
+				//console.log(pt.length());
+				//ptl = pt.length();
+				vertexActive.position.copy(pt);
+				vertexActive.parentVertex.copy(pt);
+				vertexActive.parent.geometry.verticesNeedUpdate = true;
+			}
+
+		}
+	}
+
+
+
+
+
+	controls.update();
+}
+
+function render(){
+	renderer.render( scene, camera );
+}
+
+function addLights(scene, camera, intensity){
+	lights = [];
+	if(typeof(intensity) == 'undefined'){
+		intensity = 3;
+	}
+	lights[0] = new THREE.PointLight( 0xffffff, intensity, 0 );
+	lights[1] = new THREE.PointLight( 0xffffff, intensity, 0 );
+	lights[2] = new THREE.PointLight( 0xffffff, intensity, 0 );
+	lights[0].position.set(10,5,4);
+	lights[1].position.copy(camera.position);
+	lights[1].position.z -= 5
+	lights[1].position.y += 2
+	lights[1].position.x -= 2
+	scene.add( lights[0] );
+	scene.add( lights[1] );
+	scene.add( lights[2] );
+}
+
+</script>
+</html>
